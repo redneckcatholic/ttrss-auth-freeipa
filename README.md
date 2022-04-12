@@ -20,8 +20,10 @@ Also, I've never written PHP before. Caveat emptor.
 
 ## Configuration Options
 
+The following configuration parameters are supported in `config.php`:
+
     /*
-     * The following parameters are optional. If unspecified, autodiscovery will be used.
+     * These parameters are optional. If unspecified, autodiscovery will be used.
      */
     putenv('TTRSS_AUTH_FREEIPA_DOMIN=ipa.example.com');
     putenv('TTRSS_AUTH_FREEIPA_REALM=IPA.EXAMPLE.COM');
