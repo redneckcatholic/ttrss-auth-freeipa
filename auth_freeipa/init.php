@@ -79,7 +79,6 @@ class Auth_Freeipa extends Auth_Base {
     return false;
   }
 
-
   private function discover_kerberos_realm() {
     if ($kerberos_txt_record = dns_get_record("_kerberos.{$this->domain}", DNS_TXT)) {
       $this->realm = $kerberos_txt_record[0]['txt'];
@@ -87,7 +86,6 @@ class Auth_Freeipa extends Auth_Base {
     }
     return false;
   }
-
 
   private function discover_ldap_servers() {
     if ($ldap_srv_records = dns_get_record("_ldap._tcp.{$this->domain}", DNS_SRV)) {
@@ -154,6 +152,21 @@ class Auth_Freeipa extends Auth_Base {
     return false;
   }
 
+  private function ldap_get_user($ldapconn, $username, $filter = null) {
+    if (empty($filter)) {
+      $filter = 'objectClass=*';
+    }
+
+    $results = ldap_read($ldapconn, $this->userdn($username), $filter, ['displayName', 'mail', 'memberOf']);
+    if ($results && ldap_count_entries($ldapconn, $results) == 1) {
+      if ($entry = ldap_first_entry($ldapconn, $results)) {
+        return ldap_get_attributes($ldapconn, $entry);
+      }
+    }
+    return false;
+  }
+
+
   private function _init() {
     if ($this->init) {
       return true;
@@ -203,20 +216,6 @@ class Auth_Freeipa extends Auth_Base {
 
     ldap_close($ldapconn);
     return $this->init = true;
-  }
-
-  private function ldap_get_user($ldapconn, $username, $filter = null) {
-    if (empty($filter)) {
-      $filter = 'objectClass=*';
-    }
-
-    $results = ldap_read($ldapconn, $this->userdn($username), $filter, ['displayName', 'mail', 'memberOf']);
-    if ($results && ldap_count_entries($ldapconn, $results) == 1) {
-      if ($entry = ldap_first_entry($ldapconn, $results)) {
-        return ldap_get_attributes($ldapconn, $entry);
-      }
-    }
-    return false;
   }
 
   function authenticate($username = null, $password = null, $service = '') {
