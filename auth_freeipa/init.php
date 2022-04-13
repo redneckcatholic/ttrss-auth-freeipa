@@ -1,5 +1,6 @@
 <?php
-/**
+/**               -JMJ-
+ *
  * Tiny Tiny RSS plugin for FreeIPA authentication
  * @author redneckcatholic
  * @copyright BSD-2-Clause
@@ -31,6 +32,7 @@
  *   // on login.
  *   putenv('TTRSS_AUTH_FREEIPA_ADMIN_GROUPS=ttrss_admins,sysadmins');
  */
+
 class Auth_Freeipa extends Auth_Base {
 
   const AUTH_FREEIPA_DOMAIN       = 'AUTH_FREEIPA_DOMAIN';

@@ -1,5 +1,7 @@
 # ttrss-auth-freeipa
 
+*-JMJ-*
+
 FreeIPA authentication plugin for Tiny Tiny RSS
 
 ## What is this?
