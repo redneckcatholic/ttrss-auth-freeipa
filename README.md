@@ -52,7 +52,7 @@ and standard authentication for everything else:
         AuthType GSSAPI
         AuthName "FreeIPA Single Sign-On"
         Require valid-user
-        # If no kerberos ticket, redirect to TT-RSS login page
+        # if no kerberos ticket, redirect to TT-RSS login page
         ErrorDocument 401 /index.php?noext=1
       </If>
     </LocationMatch>

@@ -250,11 +250,11 @@ class Auth_Freeipa extends Auth_Base {
       return false;
     }
 
-    /* At this point, the use has been authenticated, either by REMOTE_USER
+    /* At this point, the user has been authenticated, either by the REMOTE_USER
      * variable or a successful LDAP bind.
      *
-     * Now we will verify group membership (if requested by configuration)
-     * and retrieve user attributes like mail and displayName.
+     * Now we will verify group membership (if requested by configuration) and
+     * retrieve user attributes like mail and displayName.
      */
     $allow_groups = array_map([$this, 'groupdn'], preg_split('/[,:\s]+/', Config::get(self::AUTH_FREEIPA_ALLOW_GROUPS), -1, PREG_SPLIT_NO_EMPTY));
     $admin_groups = array_map([$this, 'groupdn'], preg_split('/[,:\s]+/', Config::get(self::AUTH_FREEIPA_ADMIN_GROUPS), -1, PREG_SPLIT_NO_EMPTY));
