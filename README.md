@@ -70,7 +70,6 @@ also works for kerberized postgres queries):
     mechs = krb5
     cred_store = client_keytab:/var/lib/gssproxy/clients/ttrss.keytab
     euid = apache
-    program = /usr/sbin/php-fpm
 
     [service/HTTP]
     mechs = krb5
