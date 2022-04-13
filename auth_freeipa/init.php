@@ -238,7 +238,7 @@ class Auth_Freeipa extends Auth_Base {
     $auth_via = 'none';
     if ($remote_user = $this->authenticate_via_remote()) {
       $username = $remote_user;
-      $auth_via = 'remote';
+      $auth_via = 'sso';
       if (!($ldapconn = $this->ldap_bind())) {
         $this->log("Authenticated $username via REMOTE_USER, but LDAP SASL bind failed!", E_USER_ERROR);
         return false;
@@ -264,15 +264,8 @@ class Auth_Freeipa extends Auth_Base {
 
     if ($user = $this->ldap_get_user($ldapconn, $username, $filter)) {
       if ($userid = $this->auto_create_user($username)) {
-
-        if ($auth_via == 'remote') {
-          $_SESSION['fake_login']    = $username;
-          $_SESSION['fake_password'] = '******';
-          $_SESSION['hide_hello']    = true;
-          $_SESSION['hide_logout']   = true;
-        }
-
         if (Config::get(Config::AUTH_AUTO_CREATE)) {
+
           if ($fullname = $user['displayName'][0]) {
             $sth = $this->pdo->prepare('UPDATE ttrss_users SET full_name = ? WHERE id = ?');
             $sth->execute([$fullname, $userid]);
