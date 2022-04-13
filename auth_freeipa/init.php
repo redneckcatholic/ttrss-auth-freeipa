@@ -92,7 +92,7 @@ class Auth_Freeipa extends Auth_Base {
       foreach ($ldap_srv_records as $record) {
         $ldap_uris[] = "ldap://$record[target]:$record[port]";
       }
-      $this->ldap_uri = implode(" ", $ldap_uris);
+      $this->ldap_uri = implode(' ', $ldap_uris);
       return true;
     }
     return false;
@@ -117,22 +117,24 @@ class Auth_Freeipa extends Auth_Base {
   }
 
   private function userdn($username) {
-    return "uid=" . ldap_escape($username) . ",cn=users,cn=accounts,{$this->basedn}";
+    return 'uid=' . ldap_escape($username) . ",cn=users,cn=accounts,{$this->basedn}";
   }
 
   private function groupdn($groupname) {
-    return "cn=" . ldap_escape($groupname) . ",cn=groups,cn=accounts,{$this->basedn}";
+    return 'cn=' . ldap_escape($groupname) . ",cn=groups,cn=accounts,{$this->basedn}";
   }
 
   private function ldap_bind($username = null, $password = null) {
     if ($ldapconn = ldap_connect($this->ldap_uri)) {
       if (ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, 3)) {
-        if (is_null($username)) {
-          if (ldap_sasl_bind($ldapconn, null, null, 'GSSAPI')) {
+        if(ldap_start_tls($ldapconn)) {
+          if (is_null($username)) {
+            if (ldap_sasl_bind($ldapconn, null, null, 'GSSAPI')) {
+              return $ldapconn;
+            }
+          } elseif (ldap_bind($ldapconn, $this->userdn($username), $password)) {
             return $ldapconn;
           }
-        } elseif (ldap_bind($ldapconn, $this->userdn($username), $password)) {
-          return $ldapconn;
         }
       }
       ldap_close($ldapconn);
