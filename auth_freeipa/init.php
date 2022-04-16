@@ -2,8 +2,9 @@
 /**               -JMJ-
  *
  * Tiny Tiny RSS plugin for FreeIPA authentication
+ *
  * @author redneckcatholic
- * @copyright BSD-2-Clause
+ * @license https://opensource.org/licenses/BSD-2-Clause
  * @version 0.01
  *
  * This plugin authenticates users within the local FreeIPA domain.
@@ -46,7 +47,8 @@ class Auth_Freeipa extends Auth_Base {
   private $realm;
   private $basedn;
   private $uri;
-  private $init = false;
+  private $ldapconn;
+  private $ready = false;
 
   function about() {
     return array(null,
@@ -100,11 +102,11 @@ class Auth_Freeipa extends Auth_Base {
     return false;
   }
 
-  private function discover_basedn($ldapconn) {
-    $results = ldap_read($ldapconn, '', 'objectClass=*', ['defaultnamingcontext']);
-    if ($results && ldap_count_entries($ldapconn, $results) == 1) {
-      if ($root_dse = ldap_first_entry($ldapconn, $results)) {
-        $attributes = ldap_get_attributes($ldapconn, $root_dse);
+  private function discover_basedn() {
+    $results = ldap_read($this->ldapconn, '', 'objectClass=*', ['defaultnamingcontext']);
+    if ($results && ldap_count_entries($this->ldapconn, $results) == 1) {
+      if ($root_dse = ldap_first_entry($this->ldapconn, $results)) {
+        $attributes = ldap_get_attributes($this->ldapconn, $root_dse);
         if ($attributes['defaultnamingcontext']['count'] == 1) {
           $this->basedn = $attributes['defaultnamingcontext'][0];
           return true;
@@ -126,22 +128,8 @@ class Auth_Freeipa extends Auth_Base {
     return 'cn=' . ldap_escape($groupname) . ",cn=groups,cn=accounts,{$this->basedn}";
   }
 
-  private function ldap_bind($username = null, $password = null) {
-    if ($ldapconn = ldap_connect($this->ldap_uri)) {
-      if (ldap_set_option($ldapconn, LDAP_OPT_PROTOCOL_VERSION, 3)) {
-        if(ldap_start_tls($ldapconn)) {
-          if (is_null($username)) {
-            if (ldap_sasl_bind($ldapconn, null, null, 'GSSAPI')) {
-              return $ldapconn;
-            }
-          } elseif (ldap_bind($ldapconn, $this->userdn($username), $password)) {
-            return $ldapconn;
-          }
-        }
-      }
-      ldap_close($ldapconn);
-    }
-    return false;
+  private function authenticate_via_ldap($username, $password) {
+    return ldap_bind($this->ldapconn, $this->userdn($username), $password);
   }
 
   private function authenticate_via_remote() {
@@ -156,23 +144,22 @@ class Auth_Freeipa extends Auth_Base {
     return false;
   }
 
-  private function ldap_get_user($ldapconn, $username, $filter = null) {
+  private function ldap_get_user($username, $filter = null) {
     if (empty($filter)) {
       $filter = 'objectClass=*';
     }
 
-    $results = ldap_read($ldapconn, $this->userdn($username), $filter, ['displayName', 'mail', 'memberOf']);
-    if ($results && ldap_count_entries($ldapconn, $results) == 1) {
-      if ($entry = ldap_first_entry($ldapconn, $results)) {
-        return ldap_get_attributes($ldapconn, $entry);
+    $results = ldap_read($this->ldapconn, $this->userdn($username), $filter, ['displayName', 'mail', 'memberOf']);
+    if ($results && ldap_count_entries($this->ldapconn, $results) == 1) {
+      if ($entry = ldap_first_entry($this->ldapconn, $results)) {
+        return ldap_get_attributes($this->ldapconn, $entry);
       }
     }
     return false;
   }
 
-
   private function _init() {
-    if ($this->init) {
+    if ($this->ready) {
       return true;
     }
 
@@ -205,21 +192,35 @@ class Auth_Freeipa extends Auth_Base {
       return false;
     }
 
-    // sasl bind to ldap server
-    if (!($ldapconn = $this->ldap_bind())) {
+    // connect to ldap server
+    if (!($this->ldapconn = ldap_connect($this->ldap_uri))) {
+      return false;
+    }
+
+    // set protocol version 3
+    if (!ldap_set_option($this->ldapconn, LDAP_OPT_PROTOCOL_VERSION, 3)) {
+      return false;
+    }
+
+    // start TLS session
+    if(!ldap_start_tls($this->ldapconn)) {
+      return false;
+    }
+
+    // bind to ldap server using kerberos credentials
+    if (!ldap_sasl_bind($this->ldapconn, null, null, 'GSSAPI')) {
       return false;
     }
 
     // get base dn
     if (!empty(Config::get(self::AUTH_FREEIPA_BASEDN))) {
       $this->ldap_uri = Config::get(self::AUTH_FREEIPA_BASEDN);
-    } elseif (!$this->discover_basedn($ldapconn)) {
+    } elseif (!$this->discover_basedn()) {
       $this->guess_basedn_from_realm();
       $this->log("Unable to determine basedn via LDAP query. Using {$this->basedn}, hope that's ok", E_USER_WARNING);
     }
 
-    ldap_close($ldapconn);
-    return $this->init = true;
+    return $this->ready = true;
   }
 
   function authenticate($username = null, $password = null, $service = '') {
@@ -234,19 +235,10 @@ class Auth_Freeipa extends Auth_Base {
      * If REMOTE_USER is not set, attempt a simple bind using the provided username
      * and password.
      */
-    $ldapconn = false;
-    $auth_via = 'none';
     if ($remote_user = $this->authenticate_via_remote()) {
       $username = $remote_user;
       $auth_via = 'sso';
-      if (!($ldapconn = $this->ldap_bind())) {
-        $this->log("Authenticated $username via REMOTE_USER, but LDAP SASL bind failed!", E_USER_ERROR);
-        return false;
-      }
-    } elseif ($username) {
-      if (!($ldapconn = $this->ldap_bind($username, $password))) {
-        return false;
-      }
+    } elseif ($username && $this->authenticate_via_ldap($username, $password)) {
       $auth_via = 'ldap';
     } else {
       return false;
@@ -262,7 +254,7 @@ class Auth_Freeipa extends Auth_Base {
     $admin_groups = array_map([$this, 'groupdn'], preg_split('/[,:\s]+/', Config::get(self::AUTH_FREEIPA_ADMIN_GROUPS), -1, PREG_SPLIT_NO_EMPTY));
     $filter = $allow_groups ? '(|(' . implode(')(', preg_filter('/^/', 'memberOf=', array_merge($allow_groups, $admin_groups))) . '))' : null;
 
-    if ($user = $this->ldap_get_user($ldapconn, $username, $filter)) {
+    if ($user = $this->ldap_get_user($username, $filter)) {
       if ($userid = $this->auto_create_user($username)) {
         if (Config::get(Config::AUTH_AUTO_CREATE)) {
 
@@ -278,7 +270,7 @@ class Auth_Freeipa extends Auth_Base {
 
           if ($admin_groups) {
             $admin_filter = '(|(' . implode(')(', preg_filter('/^/', 'memberOf=', $admin_groups)) . '))';
-            $access_level = $this->ldap_get_user($ldapconn, $username, $admin_filter) ? 10 : 0;
+            $access_level = $this->ldap_get_user($username, $admin_filter) ? 10 : 0;
 
             $sth = $this->pdo->prepare('UPDATE ttrss_users SET access_level = ? WHERE id = ?');
             $sth->execute([$access_level, $userid]);
@@ -286,11 +278,9 @@ class Auth_Freeipa extends Auth_Base {
         }
 
         $this->log("freeipa user $username authenticated via $auth_via");
-        ldap_close($ldapconn);
         return $userid;
       }
     }
-    ldap_close($ldapconn);
     return false;
   }
 
