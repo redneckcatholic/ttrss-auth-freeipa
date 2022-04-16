@@ -46,7 +46,7 @@ class Auth_Freeipa extends Auth_Base {
   private $domain;
   private $realm;
   private $basedn;
-  private $uri;
+  private $ldap_uri;
   private $ldapconn;
   private $ready = false;
 
@@ -136,7 +136,7 @@ class Auth_Freeipa extends Auth_Base {
     if (isset($_SERVER['REMOTE_USER'])) {
       $remote_user = explode('@', $_SERVER['REMOTE_USER'], 2);
       if (count($remote_user) == 2 && $remote_user[1] != $this->realm) {
-        $this->log("Denied user from unknown realm $realm, check your kerberos configuration", E_USER_WARNING);
+        $this->log("Denied user from unknown realm {$remote_user[1]}, check your kerberos configuration", E_USER_WARNING);
         return false;
       }
       return $remote_user[0];
@@ -214,7 +214,7 @@ class Auth_Freeipa extends Auth_Base {
 
     // get base dn
     if (!empty(Config::get(self::AUTH_FREEIPA_BASEDN))) {
-      $this->ldap_uri = Config::get(self::AUTH_FREEIPA_BASEDN);
+      $this->basedn = Config::get(self::AUTH_FREEIPA_BASEDN);
     } elseif (!$this->discover_basedn()) {
       $this->guess_basedn_from_realm();
       $this->log("Unable to determine basedn via LDAP query. Using {$this->basedn}, hope that's ok", E_USER_WARNING);
