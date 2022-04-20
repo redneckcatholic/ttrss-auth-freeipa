@@ -172,7 +172,7 @@ class Auth_Freeipa extends Auth_Base {
     if (!empty(Config::get(self::AUTH_FREEIPA_DOMAIN))) {
       $this->domain = Config::get(self::AUTH_FREEIPA_DOMAIN);
     } elseif (!$this->discover_dns_domain()) {
-      $this->log("Failed to discover local domain. Try setting {${self::AUTH_FREEIPA_DOMAIN}}", E_USER_ERROR);
+      $this->log("Failed to discover local domain. Try setting " . self::AUTH_FREEIPA_DOMAIN, E_USER_ERROR);
       return false;
     }
 
@@ -188,7 +188,7 @@ class Auth_Freeipa extends Auth_Base {
     if (!empty(Config::get(self::AUTH_FREEIPA_LDAP_URI))) {
       $this->ldap_uri = Config::get(self::AUTH_FREEIPA_LDAP_URI);
     } elseif (!$this->discover_ldap_servers()) {
-      $this->log("Failed to discover local LDAP servers via DNS. Try setting {${self::AUTH_FREEIPA_LDAP_URI}}", E_USER_ERROR);
+      $this->log("Failed to discover local LDAP servers via DNS. Try setting " . self::AUTH_FREEIPA_LDAP_URI, E_USER_ERROR);
       return false;
     }
 
