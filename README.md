@@ -24,40 +24,44 @@ Also, I've never written PHP before. Caveat emptor.
 
 The following configuration parameters are supported in `config.php`:
 
-    /*
-     * These parameters are optional. If unspecified, autodiscovery will be used.
-     */
-    putenv('TTRSS_AUTH_FREEIPA_DOMIN=ipa.example.com');
-    putenv('TTRSS_AUTH_FREEIPA_REALM=IPA.EXAMPLE.COM');
-    putenv('TTRSS_AUTH_FREEIPA_LDAP_URI=ldap://freeipa1.ipa.example.com');
-    putenv('TTRSS_AUTH_FREEIPA_BASEDN=dc=ipa,dc=example,dc=com');
+```php
+/*
+ * These parameters are optional. If unspecified, autodiscovery will be used.
+ */
+putenv('TTRSS_AUTH_FREEIPA_DOMIN=ipa.example.com');
+putenv('TTRSS_AUTH_FREEIPA_REALM=IPA.EXAMPLE.COM');
+putenv('TTRSS_AUTH_FREEIPA_LDAP_URI=ldap://freeipa1.ipa.example.com');
+putenv('TTRSS_AUTH_FREEIPA_BASEDN=dc=ipa,dc=example,dc=com');
 
-    /*
-     * If specified, access is only granted to members of at least one of the provided
-     * groups. Takes a list of group names.
-     */
-    putenv('TTRSS_AUTH_FREEIPA_ALLOW_GROUPS=ttrss_users,rss_fans');
+/*
+ * If specified, access is only granted to members of at least one of the provided
+ * groups. Takes a list of group names.
+ */
+putenv('TTRSS_AUTH_FREEIPA_ALLOW_GROUPS=ttrss_users,rss_fans');
 
-    /*
-     * If specified, admin privileges are granted to members of at least one of the
-     * provided groups. Takes a list of group names. Changes are only applied on login.
-     */
-    putenv('TTRSS_AUTH_FREEIPA_ADMIN_GROUPS=ttrss_admins,sysadmins');
+/*
+ * If specified, admin privileges are granted to members of at least one of the
+ * provided groups. Takes a list of group names. Changes are only applied on login.
+ */
+putenv('TTRSS_AUTH_FREEIPA_ADMIN_GROUPS=ttrss_admins,sysadmins');
+```
 
 ## Apache Configuration
 
 The following apache configuration provides SSO for the TT-RSS web login endpoint,
 and standard authentication for everything else:
 
-    <LocationMatch "^/(index.php)?$">
-      <If "%{QUERY_STRING} != 'noext=1'">
-        AuthType GSSAPI
-        AuthName "FreeIPA Single Sign-On"
-        Require valid-user
-        # if no kerberos ticket, redirect to TT-RSS login page
-        ErrorDocument 401 /index.php?noext=1
-      </If>
-    </LocationMatch>
+```apache
+<LocationMatch "^/(index.php)?$">
+  <If "%{QUERY_STRING} != 'noext=1'">
+    AuthType GSSAPI
+    AuthName "FreeIPA Single Sign-On"
+    Require valid-user
+    # if no kerberos ticket, redirect to TT-RSS login page
+    ErrorDocument 401 /index.php?noext=1
+  </If>
+</LocationMatch>
+```
 
 Note that performing a GSSAPI negotiation for every single HTTP request is extremely
 slow, so you want to limit it to the login page only.
@@ -66,16 +70,18 @@ Apache needs a keytab for `HTTP/ttrss.example.com`, and PHP needs a kerberos tic
 to perform LDAP queries. The following `gssproxy.conf` snippet is sufficient (this
 also works for kerberized postgres queries):
 
-    [service/ttrss]
-    mechs = krb5
-    cred_store = client_keytab:/var/lib/gssproxy/clients/ttrss.keytab
-    euid = apache
+```dosini
+[service/ttrss]
+mechs = krb5
+cred_store = client_keytab:/var/lib/gssproxy/clients/ttrss.keytab
+euid = apache
 
-    [service/HTTP]
-    mechs = krb5
-    cred_store = keytab:/var/lib/gssproxy/clients/httpd.keytab
-    euid = apache
-    program = /usr/sbin/httpd
+[service/HTTP]
+mechs = krb5
+cred_store = keytab:/var/lib/gssproxy/clients/httpd.keytab
+euid = apache
+program = /usr/sbin/httpd
+```
 
 Be sure to export `GSS_AUTH_PROXY=yes` for your httpd and php-fpm daemons:
 
@@ -91,4 +97,6 @@ If you're not using gssproxy, you'll need the usual `KRB5_KTNAME` and
 
 You'll also need the following if SELinux is enabled:
 
-    $ setsebool -P httpd_can_connect_ldap on
+```bash
+setsebool -P httpd_can_connect_ldap on
+```
